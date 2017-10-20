@@ -44,10 +44,11 @@ public class RaptorManger {
 	@PostConstruct
 	public void init() {
 		raptorAdmin = new Raptor(endpoint, adminUser, adminPassword);
+		raptorAdmin.Auth().login();
 	}
 
 	public User addUser(String user, String secret) {
-		User userRaptor = raptorAdmin.Admin().User().create(user, secret, "test@email.com");
+		User userRaptor = raptorAdmin.Admin().User().create(user, secret, "test@test.raptor.local");
 		return userRaptor;
 	}
 
@@ -68,14 +69,15 @@ public class RaptorManger {
 	}
 
 	public Raptor getRaptorByUser(String user, String secret) {
-		Raptor raptorTest = new Raptor(endpoint, user, secret);
-		return raptorTest;
+		Raptor raptor = new Raptor(endpoint, user, secret);
+		raptor.Auth().login();
+		return raptor;
 	}
 
 	public Raptor getRaptorByToken(String token) {
-		Raptor raptorTest = new Raptor(endpoint, token);
-		raptorTest.Auth().login();
-		return raptorTest;
+		Raptor raptor = new Raptor(endpoint, token);
+		raptor.Auth().login();
+		return raptor;
 	}
 
 	public void deleteDevices(Raptor raptor) {

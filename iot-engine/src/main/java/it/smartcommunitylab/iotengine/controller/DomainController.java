@@ -38,15 +38,17 @@ public class DomainController extends AuthController {
 	@Autowired
 	private RaptorManger raptorManager;
 
-	@RequestMapping(value = "/api/domain/{domain}/conf", method = RequestMethod.POST)
+	@RequestMapping(value = "/api/domain/{domain}/{dataset}/conf", method = RequestMethod.POST)
 	public @ResponseBody DataSetConf addDataSetConf (
 			@PathVariable String domain,
+			@PathVariable String dataset,
 			@RequestBody DataSetConf conf,
 			HttpServletRequest request) throws Exception {
 		if(!checkRole("dsa_" + domain.toLowerCase(), request)) {
 			throw new UnauthorizedException("Unauthorized Exception: role not valid");
 		}
 		conf.setDomain(domain);
+		conf.setDataset(dataset);
 		DataSetConf result = dataManager.addDataSetConf(conf);
 		String user = conf.getUser();
 		String secret = conf.getSecret();
