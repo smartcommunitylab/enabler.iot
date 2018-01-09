@@ -8,12 +8,15 @@ import it.smartcommunitylab.iotengine.exception.UnauthorizedException;
 import it.smartcommunitylab.iotengine.model.DataSetConf;
 import it.smartcommunitylab.iotengine.storage.RepositoryManager;
 
+import java.util.List;
 import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
 
+import org.apache.commons.lang3.RandomStringUtils;
 import org.createnet.raptor.models.auth.User;
 import org.createnet.raptor.models.objects.Device;
+import org.createnet.raptor.models.query.DeviceQuery;
 import org.createnet.raptor.sdk.Raptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,47 +41,56 @@ public class DomainController extends AuthController {
 	@Autowired
 	private RaptorManger raptorManager;
 
+	@RequestMapping(value = "/api/domain/{domain}/{dataset}/token", method = RequestMethod.GET)
+	public @ResponseBody String getToken (
+			@PathVariable String domain,
+			@PathVariable String dataset,
+			HttpServletRequest request) throws Exception {
+		if(!checkRole("DSA_" + domain.toUpperCase(), request)) {
+			throw new UnauthorizedException("Unauthorized Exception: role not valid");
+		}
+		DataSetConf conf = dataManager.getDataSetConf(domain, dataset);
+		if(conf == null) {
+			conf = addDataSetConf(domain, dataset);
+		}
+		String result = conf.getToken();
+		if(logger.isInfoEnabled()) {
+			logger.info(String.format("getToken: %s", result));
+		}
+		return result;
+	}
+	
 	@RequestMapping(value = "/api/domain/{domain}/{dataset}/conf", method = RequestMethod.POST)
 	public @ResponseBody DataSetConf addDataSetConf (
 			@PathVariable String domain,
 			@PathVariable String dataset,
-			@RequestBody DataSetConf conf,
 			HttpServletRequest request) throws Exception {
-		if(!checkRole("dsa_" + domain.toLowerCase(), request)) {
+		if(!checkRole("DSA_" + domain.toUpperCase(), request)) {
 			throw new UnauthorizedException("Unauthorized Exception: role not valid");
 		}
+		DataSetConf result = addDataSetConf(domain, dataset);
+		if(logger.isInfoEnabled()) {
+			logger.info(String.format("addDataSetConf: %s", result.toString()));
+		}
+		return result;
+	}
+
+	private DataSetConf addDataSetConf(String domain, String dataset) throws StorageException,
+			EntityNotFoundException {
+		DataSetConf conf = new DataSetConf();
 		conf.setDomain(domain);
 		conf.setDataset(dataset);
+		String user = domain + "-" + dataset;
+		String secret = RandomStringUtils.randomAlphanumeric(12);
+		conf.setUser(user);
+		conf.setSecret(secret);
 		DataSetConf result = dataManager.addDataSetConf(conf);
-		String user = conf.getUser();
-		String secret = conf.getSecret();
 		User userRaptor = raptorManager.addUser(user, secret);
 		conf.setUserId(userRaptor.getUuid());
 		Raptor raptor = raptorManager.getRaptorByUser(user, secret);
 		String raptorToken = raptorManager.getRaptorToken(raptor, user, secret);
 		conf.setToken(raptorToken);
 		dataManager.updateDataSetConf(conf);
-		if(logger.isInfoEnabled()) {
-			logger.info(String.format("addDataSetConf: %s", result.toString()));
-		}
-		return result;
-	}
-	
-	@RequestMapping(value = "/api/domain/{domain}/{dataset}/conf", method = RequestMethod.PUT)
-	public @ResponseBody DataSetConf updateDataSetConf (
-			@PathVariable String domain,
-			@PathVariable String dataset,
-			@RequestBody DataSetConf conf,
-			HttpServletRequest request) throws Exception {
-		if(!checkRole("dsa_" + domain.toLowerCase(), request)) {
-			throw new UnauthorizedException("Unauthorized Exception: role not valid");
-		}
-		conf.setDomain(domain);
-		conf.setDataset(dataset);
-		DataSetConf result = dataManager.updateDataSetConf(conf);
-		if(logger.isInfoEnabled()) {
-			logger.info(String.format("updateDataSetConf: %s", result.toString()));
-		}
 		return result;
 	}
 	
@@ -87,7 +99,7 @@ public class DomainController extends AuthController {
 			@PathVariable String domain,
 			@PathVariable String dataset,
 			HttpServletRequest request) throws Exception {
-		if(!checkRole("dsa_" + domain.toLowerCase(), request)) {
+		if(!checkRole("DSA_" + domain.toUpperCase(), request)) {
 			throw new UnauthorizedException("Unauthorized Exception: role not valid");
 		}
 		DataSetConf result = dataManager.removeDataSetConf(domain, dataset);
@@ -109,7 +121,7 @@ public class DomainController extends AuthController {
 			@PathVariable String dataset,
 			@RequestBody Device device,
 			HttpServletRequest request) throws Exception {
-		if(!checkRole("dsa_" + domain.toLowerCase(), request)) {
+		if(!checkRole("DSA_" + domain.toUpperCase(), request)) {
 			throw new UnauthorizedException("Unauthorized Exception: role not valid");
 		}
 		DataSetConf conf = dataManager.getDataSetConf(domain, dataset);
@@ -125,6 +137,36 @@ public class DomainController extends AuthController {
 		return result;
 	}
 	
+	@RequestMapping(value = "/api/domain/{domain}/{dataset}/device/{deviceId}", method = RequestMethod.DELETE)
+	public @ResponseBody Device deleteDevice(
+			@PathVariable String domain,
+			@PathVariable String dataset,
+			@PathVariable String deviceId,
+			HttpServletRequest request) throws Exception {
+		if(!checkRole("DSA_" + domain.toUpperCase(), request)) {
+			throw new UnauthorizedException("Unauthorized Exception: role not valid");
+		}
+		DataSetConf conf = dataManager.getDataSetConf(domain, dataset);
+		String user = conf.getUser();
+		String secret = conf.getSecret();
+		Raptor raptor = raptorManager.getRaptorByUser(user, secret);
+		DeviceQuery query = new DeviceQuery();
+		query.deviceId(deviceId);
+		List<Device> list = raptor.Inventory().search(query);
+		Device result = null;
+		if(list.size() > 0) {
+			result = list.get(0);
+			raptor.Inventory().delete(result);
+		} else {
+			throw new EntityNotFoundException("entity not found");
+		}
+		conf.getDevices().remove(deviceId);
+		dataManager.updateDataSetConf(conf);
+		if(logger.isInfoEnabled()) {
+			logger.info(String.format("deleteDevice: %s - %s - %s", domain, dataset, result.getId()));
+		}
+		return result;
+	}
 	
 	@ExceptionHandler({EntityNotFoundException.class, StorageException.class})
 	@ResponseStatus(value=HttpStatus.BAD_REQUEST)

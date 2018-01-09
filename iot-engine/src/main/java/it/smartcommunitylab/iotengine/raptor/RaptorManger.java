@@ -29,6 +29,10 @@ public class RaptorManger {
 	@Value("${raptor.adminPassword}")
 	private String adminPassword;
 	
+	@Autowired
+	@Value("${raptor.userMail}")
+	private String userMail;
+	
 	private ObjectMapper fullMapper;
 	private Raptor raptorAdmin;
 	
@@ -48,7 +52,7 @@ public class RaptorManger {
 	}
 
 	public User addUser(String user, String secret) {
-		User userRaptor = raptorAdmin.Admin().User().create(user, secret, "test@test.raptor.local");
+		User userRaptor = raptorAdmin.Admin().User().create(user, secret, userMail);
 		return userRaptor;
 	}
 
@@ -87,9 +91,9 @@ public class RaptorManger {
 	}
 
 	public void deleteTokens(Raptor raptor) {
-		for(Token token : raptor.Admin().Token().list()) {
-			//??? raptor.Admin().Token().
-		}
+//		for(Token token : raptor.Admin().Token().list()) {
+//			raptor.Admin().Token().
+//		}
 	}
 
 	public void deleteUser(Raptor raptor, String userId) {

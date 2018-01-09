@@ -15,16 +15,17 @@ public class RepositoryManager {
 	@Autowired
 	private DataSetConfRepository dataSetConfRepository;
 	
-	public DataSetConf addDataSetConf(DataSetConf conf) throws StorageException {
+	public DataSetConf addDataSetConf(DataSetConf conf) throws StorageException, EntityNotFoundException {
 		DataSetConf dataSetConfDb = dataSetConfRepository.findByDataset(conf.getDomain(), conf.getDataset());
 		if(dataSetConfDb != null) {
-			throw new StorageException("entity already present");
+			updateDataSetConf(conf);
+		} else {
+			Date now = new Date();
+			conf.setId(Utils.getUUID());
+			conf.setCreationDate(now);
+			conf.setLastUpdate(now);
+			dataSetConfRepository.save(conf);
 		}
-		Date now = new Date();
-		conf.setId(Utils.getUUID());
-		conf.setCreationDate(now);
-		conf.setLastUpdate(now);
-		dataSetConfRepository.save(conf);
 		return conf;
 	}
 	
@@ -53,11 +54,8 @@ public class RepositoryManager {
 		return confDb;
 	}
 
-	public DataSetConf getDataSetConf(String domain, String dataset) throws EntityNotFoundException {
+	public DataSetConf getDataSetConf(String domain, String dataset) {
 		DataSetConf confDb = dataSetConfRepository.findByDataset(domain, dataset);
-		if(confDb == null) {
-			throw new EntityNotFoundException("entity not found");
-		}
 		return confDb;
 	}
 
