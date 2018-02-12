@@ -42,6 +42,8 @@ public class TestDevice {
 	@Value("${raptor.adminPassword}")
 	private String adminPassword;
 	
+	private String token = "";
+	private String appId = "";
 	
 	Raptor raptor = null;
 	SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ");
