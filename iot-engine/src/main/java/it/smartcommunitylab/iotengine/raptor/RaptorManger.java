@@ -1,20 +1,22 @@
 package it.smartcommunitylab.iotengine.raptor;
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import org.createnet.raptor.models.acl.PermissionUtil;
-import org.createnet.raptor.models.acl.Permissions;
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.annotation.PostConstruct;
+
+import org.createnet.raptor.models.app.App;
+import org.createnet.raptor.models.app.AppRole;
 import org.createnet.raptor.models.auth.Token;
 import org.createnet.raptor.models.auth.User;
-import org.createnet.raptor.models.objects.Device;
+import org.createnet.raptor.sdk.PageResponse;
 import org.createnet.raptor.sdk.Raptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 
-import javax.annotation.PostConstruct;
-import java.util.List;
-import java.util.Map;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 
 public class RaptorManger {
 	@Autowired
@@ -33,8 +35,14 @@ public class RaptorManger {
 	@Value("${raptor.userMail}")
 	private String userMail;
 	
+	@Autowired
+	@Value("${raptor.domain.prefix}")
+	private String domainPrefix;
+	
 	private ObjectMapper fullMapper;
 	private Raptor raptorAdmin;
+	
+	public static String domainUserRole = "sc_domain_user";
 	
 	public RaptorManger() {
 		fullMapper = new ObjectMapper();
@@ -44,32 +52,93 @@ public class RaptorManger {
 		fullMapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
 		fullMapper.configure(SerializationFeature.INDENT_OUTPUT, false);
 	}
-
+	
 	@PostConstruct
 	public void init() {
 		raptorAdmin = new Raptor(endpoint, adminUser, adminPassword);
 		raptorAdmin.Auth().login();
 	}
-
-	public User addUser(String user, String secret) {
-		User userRaptor = raptorAdmin.Admin().User().create(user, secret, userMail);
-		return userRaptor;
+	
+	public User addDomainUser(String user, String secret) {
+		User userRaptor = new User();
+		userRaptor.setUsername(domainPrefix + user);
+		userRaptor.setPassword(secret);
+		userRaptor.setEmail(user + userMail);
+		userRaptor.setEnabled(true);
+		userRaptor.setOwnerId(raptorAdmin.Auth().getUser().getId());
+		User userDomain = raptorAdmin.Admin().User().create(userRaptor);
+		return userDomain;
 	}
+	
+	public App addUserToApplication(String domain, User domainUser) {
+		App app = null;
+		String appName = domainPrefix + domain;
+		PageResponse<App> pageResponse = raptorAdmin.App().list();
+		for(App appTemp : pageResponse.getContent()) {
+			if(appTemp.getName().equals(appName)) {
+				app = pageResponse.getContent().get(0);
+				app.addUser(domainUser, domainUserRole);
+				app = raptorAdmin.App().update(app);
+				return app;
+			}
+		}
+		List<String> permissions = new ArrayList<String>();
+		permissions.add("admin_own_device");
+		permissions.add("admin_own_stream");
 
-	public Device addDevice(Raptor raptor, String name, String description, Map<String, Object> properties) {
-		Device dev = new Device();
-		dev.name(name).description(description);
-		dev.properties().putAll(properties);
-		dev.validate();
-		raptor.Inventory().create(dev);
-		return dev;
+		List<AppRole> roles = new ArrayList<AppRole>();
+		AppRole appRole = new AppRole(domainUserRole, permissions);
+		roles.add(appRole);
+		
+		app = new App(appName, raptorAdmin.Auth().getUser());
+		app.setEnabled(true);
+		app.setRoles(roles);
+		app = raptorAdmin.App().create(app);
+		
+		app.addUser(domainUser, domainUserRole);
+		app = raptorAdmin.App().update(app);
+		return app;
+	}
+	
+	public App addDatasetApplication(String domain, String dataset, 
+			User domainUser, String domainAppId) {
+		App app = null;
+		String appName = domainPrefix + domain + "-" + dataset;
+		//AppQuery appQuery = new AppQuery();
+		//appQuery.name.match(domain);
+		PageResponse<App> pageResponse = raptorAdmin.App().list();
+		for(App appTemp : pageResponse.getContent()) {
+			if(appTemp.getName().equals(appName)) {
+				app = pageResponse.getContent().get(0);
+				app.addUser(domainUser, domainUserRole);
+				app = raptorAdmin.App().update(app);
+				return app;
+			}
+		}
+		List<String> permissions = new ArrayList<String>();
+		permissions.add("admin_own_device");
+		permissions.add("admin_own_stream");
+
+		List<AppRole> roles = new ArrayList<AppRole>();
+		AppRole appRole = new AppRole(domainUserRole, permissions);
+		roles.add(appRole);
+
+		app = new App(appName, raptorAdmin.Auth().getUser());
+		app.setEnabled(true);
+		app.setRoles(roles);
+		app.setDomain(domainAppId);
+		app = raptorAdmin.App().create(app);
+		
+		app.addUser(domainUser, domainUserRole);
+		app = raptorAdmin.App().update(app);
+		return app;
 	}
 
 	public String getRaptorToken(Raptor raptor, String user, String secret) {
-		Token token = raptor.Admin().Token().create(new Token(user, secret));
-		List<String> permissions = PermissionUtil.asList(Permissions.pull, Permissions.push);
-		raptor.Admin().Token().Permission().set(token, permissions);
-		return token.getToken();
+		Token token = new Token(user, secret);
+		token.setExpires(0L);
+		Token newToken = raptor.Admin().Token().create(token);
+		return newToken.getToken();
 	}
 
 	public Raptor getRaptorByUser(String user, String secret) {
@@ -84,21 +153,13 @@ public class RaptorManger {
 		return raptor;
 	}
 
-	public void deleteDevices(Raptor raptor) {
-		for(Device device : raptor.Inventory().list()) {
-			raptor.Inventory().delete(device);
-		}
+	public void deleteUser(String userId) {
+		User user = raptorAdmin.Admin().User().get(userId);
+		raptorAdmin.Admin().User().delete(user);
 	}
-
-	public void deleteTokens(Raptor raptor) {
-//		for(Token token : raptor.Admin().Token().list()) {
-//			raptor.Admin().Token().
-//		}
-	}
-
-	public void deleteUser(Raptor raptor, String userId) {
-		User user = raptor.Admin().User().get(userId);
-		raptor.Admin().User().delete(user);
+	
+	public User getUserById(String userId) {
+		return raptorAdmin.Admin().User().get(userId);
 	}
 
 }
