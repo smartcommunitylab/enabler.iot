@@ -88,8 +88,7 @@ public class AuthController {
 	
 	protected boolean checkRole(String role, HttpServletRequest request) 
 			throws SecurityException, UnauthorizedException, AACException {
-		//TODO test
-		boolean result = true;
+		boolean result = false;
 		String clientToken = getAuthToken(request);
 		if(Utils.isNotEmpty(clientToken)) {
 			List<String> roles = getRoles(clientToken);

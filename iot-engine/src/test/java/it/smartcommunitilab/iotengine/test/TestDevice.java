@@ -43,7 +43,6 @@ public class TestDevice {
 	private String adminPassword;
 	
 	private String token = "";
-	private String appId = "";
 	
 	Raptor raptor = null;
 	SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ");
@@ -80,7 +79,6 @@ public class TestDevice {
 	public void addDevice() {
 		Device dev = new Device();
 		dev.name("SC-IOT-test_device").description("info about");
-		//dev.domain(appId);
 		dev.addStream("stream-test", "ownerId", "string");
 		dev.addStream("stream-test", "routeId", "string");
 		dev.addStream("stream-test", "wsnNodeId", "string");
@@ -98,6 +96,7 @@ public class TestDevice {
 	public void testWriteEvents() throws Exception {
 		List<TestEvent> events = readEvents();
 		Stream stream = getStream("stream-test");
+		int count = 0;
 		for(TestEvent event : events) {
 			RecordSet record = new RecordSet(stream);
 			record.channel("ownerId", event.getOwnerId());
@@ -110,6 +109,10 @@ public class TestDevice {
 			record.channel("accuracy", event.getAccuracy());
 			record.timestamp(event.getTimestamp());
 			getRaptor().Stream().push(record);
+			count++;
+			if(count > 100) {
+				break;
+			}
 		}
 	}
 	
@@ -139,11 +142,9 @@ public class TestDevice {
 		if (current != JsonToken.START_ARRAY) {
 			System.out.println("Error: records should be an array: skipping.");
     }
-		int count = 1;
 		while (jp.nextToken() != JsonToken.END_ARRAY) {
 			try {
 				Map<String, Object> entity = jp.readValueAs(typeRef);
-				//System.out.println(count + ":" + entity);
 				TestEvent testEvent = new TestEvent();
 				testEvent.setOwnerId((String) entity.get("ownerId"));
 				testEvent.setRouteId((String) entity.get("routeId"));
@@ -155,7 +156,6 @@ public class TestDevice {
 				testEvent.setLongitude(getLongitude(entity));
 				testEvent.setAccuracy(getAccuracy(entity));
 				result.add(testEvent);
-				count++;
 			} catch (Exception e) {
 				System.err.println(e.getMessage());
 			}
