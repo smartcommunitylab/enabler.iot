@@ -1,6 +1,6 @@
 package it.smartcommunitylab.iotengine.model;
 
-public class DatasetConf extends BaseObject {
+public class DataSetConf extends BaseObject {
 	private String domain;
 	private String dataset;
 	private String applicationId;

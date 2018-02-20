@@ -3,7 +3,7 @@ package it.smartcommunitylab.iotengine.storage;
 import it.smartcommunitylab.iotengine.common.Utils;
 import it.smartcommunitylab.iotengine.exception.EntityNotFoundException;
 import it.smartcommunitylab.iotengine.exception.StorageException;
-import it.smartcommunitylab.iotengine.model.DatasetConf;
+import it.smartcommunitylab.iotengine.model.DataSetConf;
 import it.smartcommunitylab.iotengine.model.DomainConf;
 
 import java.util.Date;
@@ -14,7 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 public class RepositoryManager {
 	
 	@Autowired
-	private DatasetConfRepository datasetConfRepository;
+	private DataSetConfRepository datasetConfRepository;
 	
 	@Autowired
 	private DomainConfRepository domainConfRepository;
@@ -60,14 +60,14 @@ public class RepositoryManager {
 		if(confDb == null) {
 			throw new EntityNotFoundException("entity not found");
 		}
-		List<DatasetConf> list = datasetConfRepository.findByDomain(domain);
+		List<DataSetConf> list = datasetConfRepository.findByDomain(domain);
 		datasetConfRepository.delete(list);
 		domainConfRepository.delete(confDb);
 		return confDb;
 	}
 	
-	public DatasetConf addDatasetConf(DatasetConf conf) throws StorageException, EntityNotFoundException {
-		DatasetConf datasetConfDb = datasetConfRepository.findByDataset(conf.getDomain(), conf.getDataset());
+	public DataSetConf addDatasetConf(DataSetConf conf) throws StorageException, EntityNotFoundException {
+		DataSetConf datasetConfDb = datasetConfRepository.findByDataset(conf.getDomain(), conf.getDataset());
 		if(datasetConfDb != null) {
 			updateDatasetConf(conf);
 		} else {
@@ -80,8 +80,8 @@ public class RepositoryManager {
 		return conf;
 	}
 	
-	public DatasetConf updateDatasetConf(DatasetConf conf) throws StorageException, EntityNotFoundException {
-		DatasetConf confDb = datasetConfRepository.findByDataset(conf.getDomain(), conf.getDataset());
+	public DataSetConf updateDatasetConf(DataSetConf conf) throws StorageException, EntityNotFoundException {
+		DataSetConf confDb = datasetConfRepository.findByDataset(conf.getDomain(), conf.getDataset());
 		if(confDb == null) {
 			throw new EntityNotFoundException("entity not found");
 		}
@@ -93,8 +93,8 @@ public class RepositoryManager {
 		return confDb;
 	}
 	
-	public DatasetConf removeDatasetConf(String domain, String dataset) throws StorageException, EntityNotFoundException {
-		DatasetConf confDb = datasetConfRepository.findByDataset(domain, dataset);
+	public DataSetConf removeDatasetConf(String domain, String dataset) throws StorageException, EntityNotFoundException {
+		DataSetConf confDb = datasetConfRepository.findByDataset(domain, dataset);
 		if(confDb == null) {
 			throw new EntityNotFoundException("entity not found");
 		}
@@ -102,16 +102,16 @@ public class RepositoryManager {
 		return confDb;
 	}
 
-	public DatasetConf getDatasetConf(String domain, String dataset) {
-		DatasetConf confDb = datasetConfRepository.findByDataset(domain, dataset);
+	public DataSetConf getDatasetConf(String domain, String dataset) {
+		DataSetConf confDb = datasetConfRepository.findByDataset(domain, dataset);
 		return confDb;
 	}
 	
-	public List<DatasetConf> getAllDatasetConf() {
+	public List<DataSetConf> getAllDatasetConf() {
 		return datasetConfRepository.findAll();
 	}
 	
-	public List<DatasetConf> getDatasetConfByDomain(String domain) {
+	public List<DataSetConf> getDatasetConfByDomain(String domain) {
 		return datasetConfRepository.findByDomain(domain);
 	}
 
